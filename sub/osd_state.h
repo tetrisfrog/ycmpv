@@ -42,6 +42,8 @@ struct osd_object {
 
     // Internally used by osd_libass.c
     struct sub_bitmap *parts_cache;
+    struct m_color back_color;
+    void *back_tmp;
     struct ass_track *osd_track;
     struct ass_renderer *osd_render;
     struct ass_library *osd_ass_library;
