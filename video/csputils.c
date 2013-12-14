@@ -40,6 +40,7 @@ char * const mp_csp_names[MP_CSP_COUNT] = {
     "BT.601 (SD)",
     "BT.709 (HD)",
     "SMPTE-240M",
+    "BT.2020",
     "RGB",
     "XYZ",
     "YCgCo",
@@ -104,7 +105,13 @@ int mp_csp_levels_to_avcol_range(enum mp_csp_levels range)
 
 enum mp_csp mp_csp_guess_colorspace(int width, int height)
 {
-    return width >= 1280 || height > 576 ? MP_CSP_BT_709 : MP_CSP_BT_601;
+    if (width >= 3840 || height >= 2160) {
+        return MP_CSP_BT_2020;
+    } else if (width >= 1280 || height > 576) {
+        return MP_CSP_BT_709;
+    } else {
+        return MP_CSP_BT_601;
+    }
 }
 
 enum mp_chroma_location avchroma_location_to_mp(int avloc)
@@ -212,6 +219,7 @@ void mp_get_yuv2rgb_coeffs(struct mp_csp_params *params, float m[3][4])
     case MP_CSP_BT_601:     luma_coeffs(m, 0.299,  0.587,  0.114 ); break;
     case MP_CSP_BT_709:     luma_coeffs(m, 0.2126, 0.7152, 0.0722); break;
     case MP_CSP_SMPTE_240M: luma_coeffs(m, 0.2122, 0.7013, 0.0865); break;
+    case MP_CSP_BT_2020:    luma_coeffs(m, 0.2627, 0.6780, 0.0593); break;
     case MP_CSP_RGB: {
         static const float ident[3][4] = {{1, 0, 0}, {0, 1, 0}, {0, 0, 1}};
         memcpy(m, ident, sizeof(ident));
