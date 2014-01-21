@@ -726,6 +726,15 @@ static void mp_input_feed_key(struct input_ctx *ictx, int code, double scale)
     }
 }
 
+bool mp_input_is_key_mapped(struct input_ctx *ictx, int code)
+{
+    assert(!(code & (MP_KEY_STATE_DOWN | MP_KEY_STATE_UP))); // don't do that
+    input_lock(ictx);
+    bool mapped = !!find_any_bind_for_key(ictx, NULL, 1, &code);
+    input_unlock(ictx);
+    return mapped;
+}
+
 void mp_input_put_key(struct input_ctx *ictx, int code)
 {
     input_lock(ictx);

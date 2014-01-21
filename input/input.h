@@ -120,6 +120,11 @@ int input_default_read_cmd(void *ctx, int fd, char *buf, int l);
 // with modifiers applied. MP_INPUT_RELEASE_ALL is also a valid value.
 void mp_input_put_key(struct input_ctx *ictx, int code);
 
+// Check whether a simple key is mapped. Note that this ignores mappings that
+// use multiple keys (although modifiers, i.e. MP_KEY_MODIFIER_*, work). Note
+// that the mappings can change at any time (changing input sections etc.).
+bool mp_input_is_key_mapped(struct input_ctx *ictx, int code);
+
 // Like mp_input_put_key(), but process all UTF-8 characters in the given
 // string as key events.
 void mp_input_put_key_utf8(struct input_ctx *ictx, int mods, struct bstr t);
