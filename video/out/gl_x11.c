@@ -255,7 +255,20 @@ static bool config_window_x11(struct MPGLContext *ctx, uint32_t d_width,
     glx_ctx->vinfo = glXGetVisualFromFBConfig(vo->x11->display, fbc);
     if (!glx_ctx->vinfo) {
         MP_ERR(vo, "Selected GLX FB config has no associated X visual\n");
-        return false;
+        int legacy_attribs[] = {
+            GLX_RGBA,
+            GLX_RED_SIZE, 1,
+            GLX_GREEN_SIZE, 1,
+            GLX_BLUE_SIZE, 1,
+            GLX_DOUBLEBUFFER,
+            None
+        };
+        glx_ctx->vinfo = glXChooseVisual(vo->x11->display, vo->x11->screen,
+                                         legacy_attribs);
+        if (!glx_ctx->vinfo) {
+            MP_ERR(vo, "No GLX visual found\n");
+            return false;
+        }
     }
 
     MP_VERBOSE(vo, "GLX chose visual with ID 0x%x\n", (int)glx_ctx->vinfo->visualid);
