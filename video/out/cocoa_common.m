@@ -210,19 +210,6 @@ static void vo_cocoa_update_screens_pointers(struct vo *vo)
     get_screen_handle(vo, opts->fsscreen_id, s->window, &s->fs_screen);
 }
 
-static void vo_cocoa_update_screen_info(struct vo *vo)
-{
-    struct vo_cocoa_state *s = vo->cocoa;
-    struct mp_vo_opts *opts = vo->opts;
-
-    vo_cocoa_update_screens_pointers(vo);
-
-    NSRect r = [s->current_screen frame];
-
-    opts->screenwidth  = r.size.width;
-    opts->screenheight = r.size.height;
-}
-
 static void resize_window(struct vo *vo)
 {
     struct vo_cocoa_state *s = vo->cocoa;
@@ -254,13 +241,21 @@ static void vo_cocoa_ontop(struct vo *vo)
     vo_set_level(vo, opts->ontop);
 }
 
-static void create_window(struct vo *vo, uint32_t d_width, uint32_t d_height,
-                         uint32_t flags)
+static NSRect mp_rect_to_ns_rect(struct mp_rect rect)
+{
+    const int x0 = rect.x0;
+    const int y0 = rect.y0;
+    const int w  = mp_rect_width(rect);
+    const int h  = mp_rect_height(rect);
+    return NSMakeRect(x0, y0, w, h);
+}
+
+static void create_window(struct vo *vo, struct mp_rect rect, uint32_t flags)
 {
     struct vo_cocoa_state *s = vo->cocoa;
     struct mp_vo_opts *opts  = vo->opts;
 
-    const NSRect contentRect = NSMakeRect(vo->dx, vo->dy, d_width, d_height);
+    const NSRect contentRect = mp_rect_to_ns_rect(rect);
 
     int window_mask = 0;
     if (opts->border) {
@@ -379,6 +374,22 @@ static void vo_cocoa_resize_redraw(struct vo *vo, int width, int height)
     vo_cocoa_set_current_context(vo, false);
 }
 
+static struct mp_screen_info vo_cocoa_get_screen_info(struct vo *vo)
+{
+    struct vo_cocoa_state *s = vo->cocoa;
+    NSRect r = [s->current_screen frame];
+    struct mp_screen_info result = (struct mp_screen_info) {
+        .scr = {
+            .x0 = r.origin.x,
+            .y0 = r.origin.y,
+            .x1 = r.origin.x + r.size.width,
+            .y1 = r.origin.y + r.size.height
+        },
+    };
+    vo_copy_opts_to_screen_info(vo, &result);
+    return result;
+}
+
 int vo_cocoa_config_window(struct vo *vo, uint32_t width, uint32_t height,
                            uint32_t flags, int gl3profile)
 {
@@ -389,6 +400,12 @@ int vo_cocoa_config_window(struct vo *vo, uint32_t width, uint32_t height,
         s->inside_sync_section  = true;
         s->enable_resize_redraw = false;
         s->aspdat = vo->aspdat;
+
+        vo_cocoa_update_screens_pointers(vo);
+        struct mp_screen_info info = vo_cocoa_get_screen_info(vo);
+        struct mp_wpos wpos = vo_calc_wpos(info, width, height);
+        struct mp_rect new_rect = wpos.rect;
+        vo->monitor_par = wpos.monitor_par;
 
         bool reset_size = s->old_dwidth != width || s->old_dheight != height;
         s->old_dwidth  = width;
@@ -413,13 +430,15 @@ int vo_cocoa_config_window(struct vo *vo, uint32_t width, uint32_t height,
             }
 
             if (!s->window)
-                create_window(vo, width, height, flags);
+                create_window(vo, new_rect, flags);
         }
 
         if (s->window) {
             // Everything is properly initialized
-            if (reset_size)
-                [s->window queueNewVideoSize:NSMakeSize(width, height)];
+            if (reset_size) {
+                NSSize new_size = mp_rect_to_ns_rect(new_rect).size;
+                [s->window queueNewVideoSize:new_size];
+            }
             cocoa_set_window_title(vo, vo_get_window_title(vo));
             vo_cocoa_fullscreen(vo);
         }
@@ -498,7 +517,7 @@ static void vo_cocoa_fullscreen(struct vo *vo)
     struct vo_cocoa_state *s = vo->cocoa;
     struct mp_vo_opts *opts  = vo->opts;
 
-    vo_cocoa_update_screen_info(vo);
+    vo_cocoa_update_screens_pointers(vo);
 
     if (opts->native_fs) {
         [s->window setFullScreen:opts->fullscreen];
@@ -524,9 +543,6 @@ int vo_cocoa_control(struct vo *vo, int *events, int request, void *arg)
         return VO_TRUE;
     case VOCTRL_ONTOP:
         vo_cocoa_ontop(vo);
-        return VO_TRUE;
-    case VOCTRL_UPDATE_SCREENINFO:
-        vo_cocoa_update_screen_info(vo);
         return VO_TRUE;
     case VOCTRL_GET_WINDOW_SIZE: {
         int *s = arg;

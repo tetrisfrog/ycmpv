@@ -175,7 +175,7 @@ static int reconfig(struct vo *vo, struct mp_image_params *params, int flags)
 
     mpgl_lock(p->glctx);
 
-    if (!config_window(p, vo->dwidth, vo->dheight, flags)) {
+    if (!config_window(p, params->d_w, params->d_h, flags)) {
         mpgl_unlock(p->glctx);
         return -1;
     }

@@ -339,13 +339,14 @@ autoprobe:
     return NULL;
 }
 
-static void calc_monitor_aspect(struct mp_vo_opts *opts, int scr_w, int scr_h,
+static void calc_monitor_aspect(struct mp_screen_info info,
+                                int scr_w, int scr_h,
                                 float *pixelaspect, int *w, int *h)
 {
-    *pixelaspect = 1.0 / opts->monitor_pixel_aspect;
+    *pixelaspect = 1.0 / info.opts.monitor_pixel_aspect;
 
-    if (scr_w > 0 && scr_h > 0 && opts->force_monitor_aspect)
-        *pixelaspect = opts->force_monitor_aspect * scr_h / scr_w;
+    if (scr_w > 0 && scr_h > 0 && info.opts.force_monitor_aspect)
+        *pixelaspect = info.opts.force_monitor_aspect * scr_h / scr_w;
 
     if (*pixelaspect < 1) {
         *h /= *pixelaspect;
@@ -380,35 +381,39 @@ static void apply_autofit(int *w, int *h, int scr_w, int scr_h,
     }
 }
 
-// Set window size (vo->dwidth/dheight) and position (vo->dx/dy) according to
-// the video display size d_w/d_h.
-// NOTE: currently, all GUI backends do their own handling of window geometry
-//       additional to this code. This is to deal with initial window placement,
-//       fullscreen handling, avoiding resize on config() with no size change,
-//       multi-monitor stuff, and possibly more.
-static void determine_window_geometry(struct vo *vo, int d_w, int d_h)
+struct mp_wpos vo_calc_wpos(struct mp_screen_info info, int d_w, int d_h)
 {
-    struct mp_vo_opts *opts = vo->opts;
+    struct mp_screen_info_opts opts = info.opts;
+    struct mp_wpos result;
+    int x0, y0;
 
-    int scr_w = opts->screenwidth;
-    int scr_h = opts->screenheight;
+    struct mp_rect scr = info.scr;
+    int scr_w = mp_rect_width(scr);
+    int scr_h = mp_rect_height(scr);
 
-    MP_DBG(vo, "screen size: %dx%d\n", scr_w, scr_h);
+    calc_monitor_aspect(info, scr_w, scr_h, &result.monitor_par, &d_w, &d_h);
 
-    calc_monitor_aspect(opts, scr_w, scr_h, &vo->monitor_par, &d_w, &d_h);
+    apply_autofit(&d_w, &d_h, scr_w, scr_h, &opts.autofit, true);
+    apply_autofit(&d_w, &d_h, scr_w, scr_h, &opts.autofit_larger, false);
 
-    apply_autofit(&d_w, &d_h, scr_w, scr_h, &opts->autofit, true);
-    apply_autofit(&d_w, &d_h, scr_w, scr_h, &opts->autofit_larger, false);
+    x0 = scr.x0 + (int)(scr_w - d_w) / 2;
+    y0 = scr.y0 + (int)(scr_h - d_h) / 2;
 
-    vo->dx = (int)(opts->screenwidth - d_w) / 2;
-    vo->dy = (int)(opts->screenheight - d_h) / 2;
-    m_geometry_apply(&vo->dx, &vo->dy, &d_w, &d_h, scr_w, scr_h,
-                     &opts->geometry);
+    m_geometry_apply(&x0, &y0, &d_w, &d_h, scr_w, scr_h, &opts.geometry);
 
-    vo->dx += vo->xinerama_x;
-    vo->dy += vo->xinerama_y;
-    vo->dwidth = d_w;
-    vo->dheight = d_h;
+    result.rect = (struct mp_rect) { x0, y0, x0 + d_w, y0 + d_h };
+    return result;
+}
+
+void vo_copy_opts_to_screen_info(struct vo *vo, struct mp_screen_info *info)
+{
+    info->opts = (struct mp_screen_info_opts) {
+        .geometry             = vo->opts->geometry,
+        .autofit              = vo->opts->autofit,
+        .autofit_larger       = vo->opts->autofit_larger,
+        .force_monitor_aspect = vo->opts->force_monitor_aspect,
+        .monitor_pixel_aspect = vo->opts->monitor_pixel_aspect,
+    };
 }
 
 static int event_fd_callback(void *ctx, int fd)
@@ -420,17 +425,9 @@ static int event_fd_callback(void *ctx, int fd)
 
 int vo_reconfig(struct vo *vo, struct mp_image_params *params, int flags)
 {
-    int d_width = params->d_w;
-    int d_height = params->d_h;
-    aspect_save_videores(vo, params->w, params->h, d_width, d_height);
-
-    if (vo_control(vo, VOCTRL_UPDATE_SCREENINFO, NULL) == VO_TRUE) {
-        determine_window_geometry(vo, params->d_w, params->d_h);
-        d_width = vo->dwidth;
-        d_height = vo->dheight;
-    }
-    vo->dwidth = d_width;
-    vo->dheight = d_height;
+    int width  = params->d_w;
+    int height = params->d_h;
+    aspect_save_videores(vo, params->w, params->h, width, height);
 
     talloc_free(vo->params);
     vo->params = NULL;
@@ -442,7 +439,7 @@ int vo_reconfig(struct vo *vo, struct mp_image_params *params, int flags)
         ret = vo->driver->reconfig(vo, &p2, flags);
     } else {
         // Old config() takes window size, while reconfig() takes aspect (!)
-        ret = vo->driver->config(vo, p2.w, p2.h, d_width, d_height, flags,
+        ret = vo->driver->config(vo, p2.w, p2.h, width, height, flags,
                                  p2.imgfmt);
         ret = ret ? -1 : 0;
     }
