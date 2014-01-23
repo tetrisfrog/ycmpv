@@ -314,10 +314,10 @@ struct mp_screen_info {
 
 struct mp_wpos {
     struct mp_rect rect;
-    float monitor_par;
 };
 
-struct mp_wpos vo_calc_wpos(struct mp_screen_info info, int d_w, int d_h);
+struct mp_wpos vo_calc_wpos(struct mp_screen_info info, int d_w, int d_h,
+                            float *monitor_par);
 void vo_copy_opts_to_screen_info(struct vo *vo, struct mp_screen_info *info);
 const char *vo_get_window_title(struct vo *vo);
 

@@ -403,9 +403,8 @@ int vo_cocoa_config_window(struct vo *vo, uint32_t width, uint32_t height,
 
         vo_cocoa_update_screens_pointers(vo);
         struct mp_screen_info info = vo_cocoa_get_screen_info(vo);
-        struct mp_wpos wpos = vo_calc_wpos(info, width, height);
+        struct mp_wpos wpos = vo_calc_wpos(info, width, height, &vo->monitor_par);
         struct mp_rect new_rect = wpos.rect;
-        vo->monitor_par = wpos.monitor_par;
 
         bool reset_size = s->old_dwidth != width || s->old_dheight != height;
         s->old_dwidth  = width;
