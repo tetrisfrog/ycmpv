@@ -89,9 +89,6 @@ struct m_geometry {
     bool x_sign : 1, y_sign : 1, x_per : 1, y_per : 1;
 };
 
-void m_geometry_apply(int *xpos, int *ypos, int *widw, int *widh,
-                      int scrw, int scrh, struct m_geometry *gm);
-
 struct m_obj_desc {
     // Name which will be used in the option string
     const char *name;

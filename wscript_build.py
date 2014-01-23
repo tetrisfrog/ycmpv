@@ -330,6 +330,7 @@ def build(ctx):
         ( "video/out/cocoa_common.m",            "cocoa" ),
         ( "video/out/dither.c" ),
         ( "video/out/filter_kernels.c" ),
+        ( "video/out/geometry.c" ),
         ( "video/out/gl_cocoa.c",                "gl-cocoa" ),
         ( "video/out/gl_common.c",               "gl" ),
         ( "video/out/gl_hwdec_vaglx.c",          "vaapi-glx" ),

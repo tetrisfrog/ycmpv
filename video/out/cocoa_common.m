@@ -36,6 +36,7 @@
 
 #include "options/options.h"
 #include "video/out/vo.h"
+#include "video/out/geometry.h"
 #include "video/out/aspect.h"
 
 #include "input/input.h"

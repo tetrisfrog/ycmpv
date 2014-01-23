@@ -1534,46 +1534,6 @@ error:
 #undef READ_NUM
 #undef READ_SIGN
 
-// xpos,ypos: position of the left upper corner
-// widw,widh: width and height of the window
-// scrw,scrh: width and height of the current screen
-// The input parameters should be set to a centered window (default fallbacks).
-void m_geometry_apply(int *xpos, int *ypos, int *widw, int *widh,
-                      int scrw, int scrh, struct m_geometry *gm)
-{
-    if (gm->wh_valid) {
-        int prew = *widw, preh = *widh;
-        if (gm->w > 0)
-            *widw = gm->w_per ? scrw * (gm->w / 100.0) : gm->w;
-        if (gm->h > 0)
-            *widh = gm->h_per ? scrh * (gm->h / 100.0) : gm->h;
-        // keep aspect if the other value is not set
-        double asp = (double)prew / preh;
-        if (gm->w > 0 && !(gm->h > 0)) {
-            *widh = *widw / asp;
-        } else if (!(gm->w > 0) && gm->h > 0) {
-            *widw = *widh * asp;
-        }
-    }
-
-    if (gm->xy_valid) {
-        if (gm->x != INT_MIN) {
-            *xpos = gm->x;
-            if (gm->x_per)
-                *xpos = (scrw - *widw) * (*xpos / 100.0);
-            if (gm->x_sign)
-                *xpos = scrw - *widw - *xpos;
-        }
-        if (gm->y != INT_MIN) {
-            *ypos = gm->y;
-            if (gm->y_per)
-                *ypos = (scrh - *widh) * (*ypos / 100.0);
-            if (gm->y_sign)
-                *ypos = scrh - *widh - *ypos;
-        }
-    }
-}
-
 static int parse_geometry(struct mp_log *log, const m_option_t *opt,
                           struct bstr name, struct bstr param, void *dst)
 {

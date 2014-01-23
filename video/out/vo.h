@@ -297,28 +297,6 @@ void vo_check_events(struct vo *vo);
 void vo_seek_reset(struct vo *vo);
 void vo_destroy(struct vo *vo);
 
-struct mp_screen_info {
-    struct mp_rect scr;
-    bool is_constrained;
-    struct mp_rect constrained_scr;
-
-    struct mp_screen_info_opts {
-        struct m_geometry geometry;
-        struct m_geometry autofit;
-        struct m_geometry autofit_larger;
-
-        float force_monitor_aspect;
-        float monitor_pixel_aspect;
-    } opts;
-};
-
-struct mp_wpos {
-    struct mp_rect rect;
-};
-
-struct mp_wpos vo_calc_wpos(struct mp_screen_info info, int d_w, int d_h,
-                            float *monitor_par);
-void vo_copy_opts_to_screen_info(struct vo *vo, struct mp_screen_info *info);
 const char *vo_get_window_title(struct vo *vo);
 
 // NULL terminated array of all drivers
