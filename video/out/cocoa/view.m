@@ -35,8 +35,19 @@
     if (self) {
         [self registerForDraggedTypes:@[NSFilenamesPboardType,
                                         NSURLPboardType]];
+        [[[NSWorkspace sharedWorkspace] notificationCenter]
+            addObserver:self
+               selector:@selector(signalMousePosition)
+                   name:NSWorkspaceActiveSpaceDidChangeNotification
+                 object:nil];
     }
     return self;
+}
+
+- (void) dealloc
+{
+    [[[NSWorkspace sharedWorkspace] notificationCenter] removeObserver:self];
+    [super dealloc];
 }
 
 - (void)setFullScreen:(BOOL)willBeFullscreen
