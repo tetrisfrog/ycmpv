@@ -32,10 +32,11 @@ struct mp_screen_info {
     } opts;
 };
 
-struct mp_wpos {
-    struct mp_rect rect;
+struct mp_geometry {
+    struct mp_rect window_rect;
+    float monitor_par;
 };
 
-struct mp_wpos vo_calc_wpos(struct mp_screen_info info, int d_w, int d_h,
-                            float *monitor_par);
+struct mp_geometry mp_calc_window_geometry(struct mp_screen_info info,
+                                          int d_w, int d_h);
 void vo_copy_opts_to_screen_info(struct vo *vo, struct mp_screen_info *info);

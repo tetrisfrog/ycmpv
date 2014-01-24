@@ -102,17 +102,18 @@ static void calc_monitor_aspect(struct mp_screen_info info,
     }
 }
 
-struct mp_wpos vo_calc_wpos(struct mp_screen_info info, int d_w, int d_h,
-                            float *monitor_par)
+struct mp_geometry mp_calc_window_geometry(struct mp_screen_info info,
+                                           int d_w, int d_h)
 {
     struct mp_screen_info_opts opts = info.opts;
     int x0, y0;
 
+    struct mp_geometry result;
     struct mp_rect scr = info.scr;
     int scr_w = mp_rect_width(scr);
     int scr_h = mp_rect_height(scr);
 
-    calc_monitor_aspect(info, scr_w, scr_h, monitor_par, &d_w, &d_h);
+    calc_monitor_aspect(info, scr_w, scr_h, &result.monitor_par, &d_w, &d_h);
 
     apply_autofit(&d_w, &d_h, scr_w, scr_h, &opts.autofit, true);
     apply_autofit(&d_w, &d_h, scr_w, scr_h, &opts.autofit_larger, false);
@@ -122,9 +123,8 @@ struct mp_wpos vo_calc_wpos(struct mp_screen_info info, int d_w, int d_h,
 
     m_geometry_apply(&x0, &y0, &d_w, &d_h, scr_w, scr_h, &opts.geometry);
 
-    return (struct mp_wpos) {
-        .rect = (struct mp_rect) { x0, y0, x0 + d_w, y0 + d_h },
-    };
+    result.window_rect = (struct mp_rect) { x0, y0, x0 + d_w, y0 + d_h };
+    return result;
 }
 
 void vo_copy_opts_to_screen_info(struct vo *vo, struct mp_screen_info *info)

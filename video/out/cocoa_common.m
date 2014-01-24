@@ -391,7 +391,7 @@ static struct mp_screen_info vo_cocoa_get_screen_info(struct vo *vo)
     return result;
 }
 
-int vo_cocoa_config_window(struct vo *vo, uint32_t width, uint32_t height,
+int vo_cocoa_config_window(struct vo *vo, uint32_t d_w, uint32_t d_h,
                            uint32_t flags, int gl3profile)
 {
     struct vo_cocoa_state *s = vo->cocoa;
@@ -404,12 +404,13 @@ int vo_cocoa_config_window(struct vo *vo, uint32_t width, uint32_t height,
 
         vo_cocoa_update_screens_pointers(vo);
         struct mp_screen_info info = vo_cocoa_get_screen_info(vo);
-        struct mp_wpos wpos = vo_calc_wpos(info, width, height, &vo->monitor_par);
-        struct mp_rect new_rect = wpos.rect;
+        struct mp_geometry geometry = mp_calc_window_geometry(info, d_w, d_h);
+        vo->monitor_par = geometry.monitor_par;
+        struct mp_rect new_rect = geometry.window_rect;
 
-        bool reset_size = s->old_dwidth != width || s->old_dheight != height;
-        s->old_dwidth  = width;
-        s->old_dheight = height;
+        bool reset_size = s->old_dwidth != d_w || s->old_dheight != d_h;
+        s->old_dwidth  = d_w;
+        s->old_dheight = d_h;
 
         if (flags & VOFLAG_HIDDEN) {
             // This is certainly the first execution of vo_config_window and
