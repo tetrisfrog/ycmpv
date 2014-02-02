@@ -960,7 +960,6 @@ int vo_x11_check_events(struct vo *vo)
             break;
         case MapNotify:
             x11->window_hidden = false;
-            vo_x11_clearwindow(vo, x11->window);
             vo_x11_update_geometry(vo);
             x11->vo_hint.win_gravity = x11->old_gravity;
             XSetWMNormalHints(display, x11->window, &x11->vo_hint);
@@ -1239,9 +1238,10 @@ static void vo_x11_create_window(struct vo *vo, XVisualInfo *vis, int x, int y,
                                         vis->visual, AllocNone);
     }
 
-    unsigned long xswamask = CWBorderPixel | CWColormap;
+    unsigned long xswamask = CWBorderPixel | CWBackPixel | CWColormap;
     XSetWindowAttributes xswa = {
         .border_pixel = 0,
+        .background_pixel = 0,
         .colormap = x11->colormap,
     };
 
