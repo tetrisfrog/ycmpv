@@ -124,7 +124,10 @@ static void create_ass_track(struct osd_state *osd, struct osd_object *obj,
     }
 
     ASS_Style *s_osd = track->styles + track->default_style;
-    mp_ass_set_style(s_osd, track->PlayResY, osd->opts->osd_style);
+    struct osd_style_opts st = *osd->opts->osd_style;
+    if (obj->type == OSDTYPE_PROGBAR)
+        st.back_color = (struct m_color){0};
+    mp_ass_set_style(s_osd, track->PlayResY, &st);
 
     ASS_Style *s_def = track->styles + track->default_style + 1;
     const struct osd_style_opts *def = osd_style_conf.defaults;
