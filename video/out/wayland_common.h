@@ -25,6 +25,8 @@
 #include <wayland-cursor.h>
 #include <xkbcommon/xkbcommon.h>
 
+#include "wayland-scaler-client-protocol.h"
+
 #include "config.h"
 
 #if HAVE_GL_WAYLAND
@@ -75,6 +77,8 @@ struct vo_wayland_state {
         int output_mode_received;
 
         int display_fd;
+
+        struct wl_scaler *scaler;
 
         struct wl_shm *shm;
     } display;

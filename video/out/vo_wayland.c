@@ -130,6 +130,8 @@ struct priv {
     struct vo *vo;
     struct vo_wayland_state *wl;
 
+    struct wl_viewport *viewport;
+
     struct wl_list format_list;
     const struct fmtentry *video_format;
 
@@ -503,10 +505,16 @@ static bool resize(struct priv *p)
     p->sws->src = p->in_format;
     p->sws->dst = (struct mp_image_params) {
         .imgfmt = p->video_format->mp_fmt,
+            /*
         .w = p->dst_w,
         .h = p->dst_h,
         .d_w = p->dst_w,
         .d_h = p->dst_h,
+        */
+        .w = p->width,
+        .h = p->height,
+        .d_w = p->width,
+        .d_h = p->height,
     };
 
     mp_image_params_guess_csp(&p->sws->dst);
@@ -514,10 +522,17 @@ static bool resize(struct priv *p)
     if (mp_sws_reinit(p->sws) < 0)
         return false;
 
+    /*
     if (!buffer_pool_resize(&p->video_bufpool, p->dst_w, p->dst_h)) {
         MP_ERR(wl, "failed to resize buffers\n");
         return false;
     }
+    */
+
+    wl_viewport_set(p->viewport,
+                    wl_fixed_from_int(0), wl_fixed_from_int(0),
+                    wl_fixed_from_int(p->width), wl_fixed_from_int(p->height),
+                    p->dst_w, p->dst_h);
 
     wl->window.width = p->dst_w;
     wl->window.height = p->dst_h;
@@ -536,6 +551,9 @@ static bool resize(struct priv *p)
     p->y = y;
     p->wl->window.events = 0;
     p->vo->want_redraw = true;
+    wl->vo->dwidth = p->width;
+    wl->vo->dheight = p->height;
+    vo_get_src_dst_rects(p->vo, &p->src, &p->dst, &p->osd);
     return true;
 }
 
@@ -745,6 +763,9 @@ static void uninit(struct vo *vo)
 
     talloc_free(p->original_image);
 
+    if (p->viewport)
+        wl_viewport_destroy(p->viewport);
+
     vo_wayland_uninit(vo);
 }
 
@@ -763,6 +784,9 @@ static int preinit(struct vo *vo)
 
     wl_shm_add_listener(p->wl->display.shm, &shm_listener, p);
     wl_display_dispatch(p->wl->display.display);
+
+    p->viewport = wl_scaler_get_viewport(p->wl->display.scaler,
+                                         p->wl->window.surface);
     return 0;
 }
 

@@ -610,6 +610,12 @@ static void registry_handle_global (void *data,
                 wl->input.devman, wl->input.seat);
         wl_data_device_add_listener(wl->input.datadev, &data_device_listener, wl);
     }
+
+    else if (strcmp(interface, "wl_scaler") == 0) {
+
+        wl->display.scaler = wl_registry_bind(reg, id, &wl_scaler_interface, 1);
+    }
+
 }
 
 static void registry_handle_global_remove (void *data,
@@ -772,6 +778,9 @@ static void destroy_display (struct vo_wayland_state *wl)
             wl_list_remove(&output->link);
         }
     }
+
+    if (wl->display.scaler)
+        wl_scaler_destroy(wl->display.scaler);
 
     if (wl->display.shm)
         wl_shm_destroy(wl->display.shm);
