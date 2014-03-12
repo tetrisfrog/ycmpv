@@ -32,11 +32,7 @@
 OSStatus ca_get(AudioObjectID id, ca_scope scope, ca_sel selector,
                 uint32_t size, void *data);
 
-OSStatus ca_set(AudioObjectID id, ca_scope scope, ca_sel selector,
-                uint32_t size, void *data);
-
 #define CA_GET(id, sel, data) ca_get(id, CA_GLOBAL, sel, sizeof(*(data)), data)
-#define CA_SET(id, sel, data) ca_set(id, CA_GLOBAL, sel, sizeof(*(data)), data)
 
 OSStatus ca_get_ary(AudioObjectID id, ca_scope scope, ca_sel selector,
                     uint32_t element_size, void **data, size_t *elements);
@@ -51,10 +47,5 @@ OSStatus ca_get_str(AudioObjectID id, ca_scope scope,ca_sel selector,
                     char **data);
 
 #define CA_GET_STR(id, sel, data) ca_get_str(id, CA_GLOBAL, sel, data)
-
-Boolean ca_settable(AudioObjectID id, ca_scope scope, ca_sel selector,
-                    Boolean *data);
-
-#define CA_SETTABLE(id, sel, data) ca_settable(id, CA_GLOBAL, sel, data)
 
 #endif /* MPV_COREAUDIO_PROPERTIES_H */

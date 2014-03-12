@@ -49,34 +49,6 @@ bool check_ca_st(struct ao *ao, int level, OSStatus code, const char *message);
 void ca_print_asbd(struct ao *ao, const char *description,
                    const AudioStreamBasicDescription *asbd);
 
-bool ca_format_is_digital(AudioStreamBasicDescription asbd);
-bool ca_stream_supports_digital(struct ao *ao, AudioStreamID stream);
-bool ca_device_supports_digital(struct ao *ao, AudioDeviceID device);
-
-OSStatus ca_property_listener(AudioObjectPropertySelector selector,
-                              AudioObjectID object, uint32_t n_addresses,
-                              const AudioObjectPropertyAddress addresses[],
-                              void *data);
-
-OSStatus ca_stream_listener(AudioObjectID object, uint32_t n_addresses,
-                            const AudioObjectPropertyAddress addresses[],
-                            void *data);
-
-OSStatus ca_device_listener(AudioObjectID object, uint32_t n_addresses,
-                            const AudioObjectPropertyAddress addresses[],
-                            void *data);
-
-OSStatus ca_lock_device(AudioDeviceID device, pid_t *pid);
-OSStatus ca_unlock_device(AudioDeviceID device, pid_t *pid);
-OSStatus ca_disable_mixing(struct ao *ao, AudioDeviceID device, bool *changed);
-OSStatus ca_enable_mixing(struct ao *ao, AudioDeviceID device, bool changed);
-
-OSStatus ca_enable_device_listener(AudioDeviceID device, void *flag);
-OSStatus ca_disable_device_listener(AudioDeviceID device, void *flag);
-
-bool ca_change_format(struct ao *ao, AudioStreamID stream,
-                      AudioStreamBasicDescription change_format);
-
 void ca_bitmaps_from_layouts(struct ao *ao,
                              AudioChannelLayout *layouts, size_t n_layouts,
                              uint32_t **bitmaps, size_t *n_bitmaps);

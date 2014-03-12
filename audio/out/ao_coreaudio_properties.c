@@ -35,18 +35,6 @@ OSStatus ca_get(AudioObjectID id, ca_scope scope, ca_sel selector,
     return AudioObjectGetPropertyData(id, &p_addr, 0, NULL, &size, data);
 }
 
-OSStatus ca_set(AudioObjectID id, ca_scope scope, ca_sel selector,
-                uint32_t size, void *data)
-{
-    AudioObjectPropertyAddress p_addr = (AudioObjectPropertyAddress) {
-        .mSelector = selector,
-        .mScope    = scope,
-        .mElement  = kAudioObjectPropertyElementMaster,
-    };
-
-    return AudioObjectSetPropertyData(id, &p_addr, 0, NULL, size, data);
-}
-
 OSStatus ca_get_ary(AudioObjectID id, ca_scope scope, ca_sel selector,
                     uint32_t element_size, void **data, size_t *elements)
 {
@@ -93,16 +81,3 @@ OSStatus ca_get_str(AudioObjectID id, ca_scope scope, ca_sel selector,
 coreaudio_error:
     return err;
 }
-
-Boolean ca_settable(AudioObjectID id, ca_scope scope, ca_sel selector,
-                    Boolean *data)
-{
-    AudioObjectPropertyAddress p_addr = (AudioObjectPropertyAddress) {
-        .mSelector = selector,
-        .mScope    = kAudioObjectPropertyScopeGlobal,
-        .mElement  = kAudioObjectPropertyElementMaster,
-    };
-
-    return AudioObjectIsPropertySettable(id, &p_addr, data);
-}
-
