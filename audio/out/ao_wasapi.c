@@ -22,6 +22,7 @@
 
 #include <stdlib.h>
 #include <inttypes.h>
+#include <stdatomic.h>
 #include <process.h>
 #include <initguid.h>
 #include <audioclient.h>
@@ -33,7 +34,6 @@
 #include "audio/out/ao_wasapi_utils.h"
 
 #include "audio/format.h"
-#include "compat/atomics.h"
 #include "osdep/timer.h"
 #include "osdep/io.h"
 
@@ -43,7 +43,8 @@
               do { if ((unk) != NULL) { release; (unk) = NULL; } } while(0)
 
 static double get_device_delay(struct wasapi_state *state) {
-    UINT64 sample_count = state->sample_count;
+    atomic_thread_fence(memory_order_seq_cst);
+    UINT64 sample_count = atomic_load(&state->sample_count);
     UINT64 position, qpc_position;
     HRESULT hr;
 
@@ -100,8 +101,8 @@ static void thread_feed(struct ao *ao)
                                           frame_count, 0);
     EXIT_ON_ERROR(hr);
 
-    mp_atomic_add_and_fetch(&state->sample_count, frame_count);
-    mp_memory_barrier();
+    atomic_fetch_add(&state->sample_count, frame_count);
+    atomic_thread_fence(memory_order_seq_cst);
 
     return;
 exit_label:
@@ -318,8 +319,8 @@ static void audio_pause(struct ao *ao)
 
     IAudioClient_Stop(state->pAudioClientProxy);
     IAudioClient_Reset(state->pAudioClientProxy);
-    state->sample_count = 0;
-    mp_memory_barrier();
+    atomic_store(&state->sample_count, 0);
+    atomic_thread_fence(memory_order_seq_cst);
 }
 
 static void audio_resume(struct ao *ao)

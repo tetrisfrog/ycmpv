@@ -23,11 +23,11 @@
 #include <unistd.h>
 #include <assert.h>
 #include <pthread.h>
+#include <stdatomic.h>
 
 #include "talloc.h"
 
 #include "bstr/bstr.h"
-#include "compat/atomics.h"
 #include "common/common.h"
 #include "common/global.h"
 #include "misc/ring.h"
@@ -65,7 +65,7 @@ struct mp_log_root {
     /* This is incremented every time the msglevels must be reloaded.
      * (This is perhaps better than maintaining a globally accessible and
      * synchronized mp_log tree.) */
-    int64_t reload_counter;
+    _Atomic(int64_t) reload_counter;
 };
 
 struct mp_log {
@@ -74,7 +74,7 @@ struct mp_log {
     const char *verbose_prefix;
     int level;                  // minimum log level for any outputs
     int terminal_level;         // minimum log level for terminal output
-    int64_t reload_counter;
+    _Atomic(int64_t) reload_counter;
 };
 
 struct mp_log_buffer {
@@ -119,7 +119,7 @@ static void update_loglevel(struct mp_log *log)
     }
     for (int n = 0; n < log->root->num_buffers; n++)
         log->level = MPMAX(log->level, log->root->buffers[n]->level);
-    log->reload_counter = log->root->reload_counter;
+    atomic_store(&log->reload_counter, atomic_load(&log->root->reload_counter));
     pthread_mutex_unlock(&mp_msg_lock);
 }
 
@@ -127,10 +127,10 @@ static void update_loglevel(struct mp_log *log)
 // Thread-safety: see mp_msg().
 bool mp_msg_test(struct mp_log *log, int lev)
 {
-    mp_memory_barrier();
+    atomic_thread_fence(memory_order_seq_cst);
     if (!log->root || log->root->mute)
         return false;
-    if (log->reload_counter != log->root->reload_counter)
+    if (atomic_load(&log->reload_counter) != atomic_load(&log->root->reload_counter))
         update_loglevel(log);
     return lev <= log->level || (log->root->smode && lev == MSGL_SMODE);
 }
@@ -350,6 +350,8 @@ struct mp_log *mp_log_new(void *talloc_ctx, struct mp_log *parent,
         log->prefix = NULL;
     if (!log->verbose_prefix[0])
         log->verbose_prefix = "global";
+
+    atomic_init(&log->reload_counter, 0);
     return log;
 }
 
@@ -360,7 +362,7 @@ void mp_msg_init(struct mpv_global *global)
     struct mp_log_root *root = talloc_zero(NULL, struct mp_log_root);
     root->global = global;
     root->header = true;
-    root->reload_counter = 1;
+    atomic_init(&root->reload_counter, 1);
 
     struct mp_log dummy = { .root = root };
     struct mp_log *log = mp_log_new(root, &dummy, "");
@@ -393,8 +395,8 @@ void mp_msg_update_msglevels(struct mpv_global *global)
     talloc_free(root->msglevels);
     root->msglevels = talloc_strdup(root, global->opts->msglevels);
 
-    mp_atomic_add_and_fetch(&root->reload_counter, 1);
-    mp_memory_barrier();
+    atomic_fetch_add(&root->reload_counter, 1);
+    atomic_thread_fence(memory_order_seq_cst);
     pthread_mutex_unlock(&mp_msg_lock);
 }
 
@@ -436,8 +438,8 @@ struct mp_log_buffer *mp_msg_log_buffer_new(struct mpv_global *global,
 
     MP_TARRAY_APPEND(root, root->buffers, root->num_buffers, buffer);
 
-    mp_atomic_add_and_fetch(&root->reload_counter, 1);
-    mp_memory_barrier();
+    atomic_fetch_add(&root->reload_counter, 1);
+    atomic_thread_fence(memory_order_seq_cst);
 
     pthread_mutex_unlock(&mp_msg_lock);
 
@@ -471,8 +473,8 @@ found:
     }
     talloc_free(buffer);
 
-    mp_atomic_add_and_fetch(&root->reload_counter, 1);
-    mp_memory_barrier();
+    atomic_fetch_add(&root->reload_counter, 1);
+    atomic_thread_fence(memory_order_seq_cst);
 
     pthread_mutex_unlock(&mp_msg_lock);
 }

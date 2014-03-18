@@ -456,7 +456,7 @@ static int init_clock(struct wasapi_state *state) {
 
     QueryPerformanceFrequency(&state->qpc_frequency);
 
-    state->sample_count = 0;
+    atomic_init(&state->sample_count, 0);
 
     MP_VERBOSE(state, "IAudioClock::GetFrequency gave a frequency of %"PRIu64".\n", (uint64_t) state->clock_frequency);
 

@@ -20,6 +20,7 @@
 #include <inttypes.h>
 #include <limits.h>
 #include <assert.h>
+#include <stdatomic.h>
 
 #include "ao.h"
 #include "internal.h"
@@ -29,7 +30,6 @@
 #include "common/common.h"
 
 #include "osdep/threads.h"
-#include "compat/atomics.h"
 
 #include "audio/audio.h"
 #include "audio/audio_buffer.h"

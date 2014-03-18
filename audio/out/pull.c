@@ -18,6 +18,7 @@
 #include <stddef.h>
 #include <inttypes.h>
 #include <assert.h>
+#include <stdatomic.h>
 
 #include "ao.h"
 #include "internal.h"
@@ -28,7 +29,6 @@
 
 #include "osdep/timer.h"
 #include "osdep/threads.h"
-#include "compat/atomics.h"
 #include "misc/ring.h"
 
 enum {
@@ -78,7 +78,7 @@ static int play(struct ao *ao, void **data, int samples, int flags)
     if (p->state != AO_STATE_PLAY) {
         p->end_time_us = 0;
         p->state = AO_STATE_PLAY;
-        mp_memory_barrier();
+        atomic_thread_fence(memory_order_seq_cst);
         if (ao->driver->resume)
             ao->driver->resume(ao);
     }
@@ -101,7 +101,7 @@ int ao_read_data(struct ao *ao, void **data, int samples, int64_t out_time_us)
     struct ao_pull_state *p = ao->api_priv;
     int full_bytes = samples * ao->sstride;
 
-    mp_memory_barrier();
+    atomic_thread_fence(memory_order_seq_cst);
     if (!p->ready) {
         for (int n = 0; n < ao->num_planes; n++)
             af_fill_silence(data[n], full_bytes, ao->format);
@@ -116,7 +116,7 @@ int ao_read_data(struct ao *ao, void **data, int samples, int64_t out_time_us)
     if (bytes > 0)
         p->end_time_us = out_time_us;
 
-    mp_memory_barrier();
+    atomic_thread_fence(memory_order_seq_cst);
     if (p->state == AO_STATE_PAUSE)
         bytes = 0;
 
@@ -147,7 +147,7 @@ static float get_delay(struct ao *ao)
 {
     struct ao_pull_state *p = ao->api_priv;
 
-    mp_memory_barrier();
+    atomic_thread_fence(memory_order_seq_cst);
     int64_t end = p->end_time_us;
     int64_t now = mp_time_us();
     double driver_delay = MPMAX(0, (end - now) / (1000.0 * 1000.0));
@@ -163,13 +163,13 @@ static void reset(struct ao *ao)
     // stops the audio callback, though.
     p->ready = 0;
     p->state = AO_STATE_NONE;
-    mp_memory_barrier();
+    atomic_thread_fence(memory_order_seq_cst);
     for (int n = 0; n < ao->num_planes; n++)
         mp_ring_reset(p->buffers[n]);
     p->end_time_us = 0;
-    mp_memory_barrier();
+    atomic_thread_fence(memory_order_seq_cst);
     p->ready = 1;
-    mp_memory_barrier();
+    atomic_thread_fence(memory_order_seq_cst);
 }
 
 static void pause(struct ao *ao)
@@ -178,14 +178,14 @@ static void pause(struct ao *ao)
     if (ao->driver->pause)
         ao->driver->pause(ao);
     p->state = AO_STATE_PAUSE;
-    mp_memory_barrier();
+    atomic_thread_fence(memory_order_seq_cst);
 }
 
 static void resume(struct ao *ao)
 {
     struct ao_pull_state *p = ao->api_priv;
     p->state = AO_STATE_PLAY;
-    mp_memory_barrier();
+    atomic_thread_fence(memory_order_seq_cst);
     if (ao->driver->resume)
         ao->driver->resume(ao);
 }
@@ -201,7 +201,7 @@ static int init(struct ao *ao)
     for (int n = 0; n < ao->num_planes; n++)
             p->buffers[n] = mp_ring_new(ao, ao->buffer * ao->sstride);
     p->ready = 1;
-    mp_memory_barrier();
+    atomic_thread_fence(memory_order_seq_cst);
     return 0;
 }
 
