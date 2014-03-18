@@ -35,14 +35,12 @@ struct mp_ring {
 
 static uint32_t mp_ring_get_wpos(struct mp_ring *buffer)
 {
-    atomic_thread_fence(memory_order_seq_cst);
-    return atomic_load(&buffer->wpos);
+    return atomic_load_explicit(&buffer->wpos, memory_order_acquire);
 }
 
 static uint32_t mp_ring_get_rpos(struct mp_ring *buffer)
 {
-    atomic_thread_fence(memory_order_seq_cst);
-    return atomic_load(&buffer->rpos);
+    return atomic_load_explicit(&buffer->rpos, memory_order_acquire);
 }
 
 struct mp_ring *mp_ring_new(void *talloc_ctx, int size)
@@ -63,8 +61,7 @@ int mp_ring_drain(struct mp_ring *buffer, int len)
 {
     int buffered  = mp_ring_buffered(buffer);
     int drain_len = FFMIN(len, buffered);
-    atomic_fetch_add(&buffer->rpos, drain_len);
-    atomic_thread_fence(memory_order_seq_cst);
+    atomic_fetch_add_explicit(&buffer->rpos, drain_len, memory_order_acq_rel);
     return drain_len;
 }
 
@@ -83,8 +80,7 @@ int mp_ring_read(struct mp_ring *buffer, unsigned char *dest, int len)
     memcpy(dest, buffer->buffer + read_ptr, len1);
     memcpy(dest + len1, buffer->buffer, len2);
 
-    atomic_fetch_add(&buffer->rpos, read_len);
-    atomic_thread_fence(memory_order_seq_cst);
+    atomic_fetch_add_explicit(&buffer->rpos, read_len, memory_order_acq_rel);
 
     return read_len;
 }
@@ -102,17 +98,15 @@ int mp_ring_write(struct mp_ring *buffer, unsigned char *src, int len)
     memcpy(buffer->buffer + write_ptr, src, len1);
     memcpy(buffer->buffer, src + len1, len2);
 
-    atomic_fetch_add(&buffer->wpos, write_len);
-    atomic_thread_fence(memory_order_seq_cst);
+    atomic_fetch_add_explicit(&buffer->wpos, write_len, memory_order_acq_rel);
 
     return write_len;
 }
 
 void mp_ring_reset(struct mp_ring *buffer)
 {
-    atomic_store(&buffer->wpos, 0);
-    atomic_store(&buffer->rpos, 0);
-    atomic_thread_fence(memory_order_seq_cst);
+    atomic_store_explicit(&buffer->wpos, 0, memory_order_release);
+    atomic_store_explicit(&buffer->rpos, 0, memory_order_release);
 }
 
 int mp_ring_available(struct mp_ring *buffer)
