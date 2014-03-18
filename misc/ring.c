@@ -18,9 +18,9 @@
  */
 
 #include <inttypes.h>
-#include <stdatomic.h>
 #include <libavutil/common.h>
 #include <assert.h>
+#include "compat/stdatomic.h"
 #include "talloc.h"
 #include "ring.h"
 

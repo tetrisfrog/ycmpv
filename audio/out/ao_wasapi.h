@@ -28,7 +28,7 @@
 #include <mmdeviceapi.h>
 #include <avrt.h>
 
-#include <stdatomic.h>
+#include "compat/stdatomic.h"
 
 typedef struct wasapi_state {
     struct mp_log *log;

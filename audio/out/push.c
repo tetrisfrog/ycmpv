@@ -20,7 +20,6 @@
 #include <inttypes.h>
 #include <limits.h>
 #include <assert.h>
-#include <stdatomic.h>
 
 #include "ao.h"
 #include "internal.h"
@@ -28,6 +27,7 @@
 
 #include "common/msg.h"
 #include "common/common.h"
+#include "compat/stdatomic.h"
 
 #include "osdep/threads.h"
 

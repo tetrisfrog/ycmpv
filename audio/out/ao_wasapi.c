@@ -22,7 +22,6 @@
 
 #include <stdlib.h>
 #include <inttypes.h>
-#include <stdatomic.h>
 #include <process.h>
 #include <initguid.h>
 #include <audioclient.h>

@@ -18,7 +18,6 @@
 #include <stddef.h>
 #include <inttypes.h>
 #include <assert.h>
-#include <stdatomic.h>
 
 #include "ao.h"
 #include "internal.h"
@@ -29,6 +28,7 @@
 
 #include "osdep/timer.h"
 #include "osdep/threads.h"
+#include "compat/stdatomic.h"
 #include "misc/ring.h"
 
 enum {

@@ -23,13 +23,13 @@
 #include <unistd.h>
 #include <assert.h>
 #include <pthread.h>
-#include <stdatomic.h>
 
 #include "talloc.h"
 
 #include "bstr/bstr.h"
 #include "common/common.h"
 #include "common/global.h"
+#include "compat/stdatomic.h"
 #include "misc/ring.h"
 #include "options/options.h"
 #include "osdep/terminal.h"
