@@ -43,13 +43,13 @@ struct ao_pull_state {
     struct mp_ring *buffers[MP_NUM_CHANNELS];
 
     // AO_STATE_*
-    int state;
+    _Atomic(int) state;
 
     // Whether buffers[] can be accessed.
-    int ready;
+    atomic_flag ready;
 
     // Device delay of the last written sample, in realtime.
-    int64_t end_time_us;
+    _Atomic(int64_t) end_time_us;
 };
 
 static int get_space(struct ao *ao)
@@ -75,10 +75,9 @@ static int play(struct ao *ao, void **data, int samples, int flags)
         int r = mp_ring_write(p->buffers[n], data[n], write_bytes);
         assert(r == write_bytes);
     }
-    if (p->state != AO_STATE_PLAY) {
-        p->end_time_us = 0;
-        p->state = AO_STATE_PLAY;
-        atomic_thread_fence(memory_order_seq_cst);
+    if (atomic_load(&p->state) != AO_STATE_PLAY) {
+        atomic_store_explicit(&p->end_time_us, 0, memory_order_relaxed);
+        atomic_store(&p->state, AO_STATE_PLAY);
         if (ao->driver->resume)
             ao->driver->resume(ao);
     }
@@ -101,8 +100,9 @@ int ao_read_data(struct ao *ao, void **data, int samples, int64_t out_time_us)
     struct ao_pull_state *p = ao->api_priv;
     int full_bytes = samples * ao->sstride;
 
-    atomic_thread_fence(memory_order_seq_cst);
-    if (!p->ready) {
+    if (atomic_flag_test_and_set(&p->ready)) {
+        atomic_flag_clear(&p->ready);
+
         for (int n = 0; n < ao->num_planes; n++)
             af_fill_silence(data[n], full_bytes, ao->format);
         return 0;
@@ -114,10 +114,9 @@ int ao_read_data(struct ao *ao, void **data, int samples, int64_t out_time_us)
     bytes = MPMIN(bytes, full_bytes);
 
     if (bytes > 0)
-        p->end_time_us = out_time_us;
+        atomic_store_explicit(&p->end_time_us, out_time_us, memory_order_relaxed);
 
-    atomic_thread_fence(memory_order_seq_cst);
-    if (p->state == AO_STATE_PAUSE)
+    if (atomic_load_explicit(&p->state, memory_order_acquire) == AO_STATE_PAUSE)
         bytes = 0;
 
     for (int n = 0; n < ao->num_planes; n++) {
@@ -128,6 +127,8 @@ int ao_read_data(struct ao *ao, void **data, int samples, int64_t out_time_us)
         if (silence)
             af_fill_silence((char *)data[n] + bytes, silence, ao->format);
     }
+    atomic_flag_clear(&p->ready);
+
     return bytes / ao->sstride;
 }
 
@@ -147,8 +148,7 @@ static float get_delay(struct ao *ao)
 {
     struct ao_pull_state *p = ao->api_priv;
 
-    atomic_thread_fence(memory_order_seq_cst);
-    int64_t end = p->end_time_us;
+    int64_t end = atomic_load_explicit(&p->end_time_us, memory_order_relaxed);
     int64_t now = mp_time_us();
     double driver_delay = MPMAX(0, (end - now) / (1000.0 * 1000.0));
     return mp_ring_buffered(p->buffers[0]) / (double)ao->bps + driver_delay;
@@ -159,17 +159,15 @@ static void reset(struct ao *ao)
     struct ao_pull_state *p = ao->api_priv;
     if (ao->driver->reset)
         ao->driver->reset(ao);
-    // Not like this is race-condition free. It will work if ->reset
-    // stops the audio callback, though.
-    p->ready = 0;
-    p->state = AO_STATE_NONE;
-    atomic_thread_fence(memory_order_seq_cst);
+
+    do {} while (!atomic_flag_test_and_set(&p->ready));
+
+    atomic_store_explicit(&p->state, AO_STATE_NONE, memory_order_relaxed);
+    atomic_store_explicit(&p->end_time_us, 0, memory_order_relaxed);
     for (int n = 0; n < ao->num_planes; n++)
         mp_ring_reset(p->buffers[n]);
-    p->end_time_us = 0;
-    atomic_thread_fence(memory_order_seq_cst);
-    p->ready = 1;
-    atomic_thread_fence(memory_order_seq_cst);
+
+    atomic_flag_clear(&p->ready);
 }
 
 static void pause(struct ao *ao)
@@ -177,15 +175,13 @@ static void pause(struct ao *ao)
     struct ao_pull_state *p = ao->api_priv;
     if (ao->driver->pause)
         ao->driver->pause(ao);
-    p->state = AO_STATE_PAUSE;
-    atomic_thread_fence(memory_order_seq_cst);
+    atomic_store(&p->state, AO_STATE_PAUSE);
 }
 
 static void resume(struct ao *ao)
 {
     struct ao_pull_state *p = ao->api_priv;
-    p->state = AO_STATE_PLAY;
-    atomic_thread_fence(memory_order_seq_cst);
+    atomic_store(&p->state, AO_STATE_PLAY);
     if (ao->driver->resume)
         ao->driver->resume(ao);
 }
@@ -199,9 +195,10 @@ static int init(struct ao *ao)
 {
     struct ao_pull_state *p = ao->api_priv;
     for (int n = 0; n < ao->num_planes; n++)
-            p->buffers[n] = mp_ring_new(ao, ao->buffer * ao->sstride);
-    p->ready = 1;
-    atomic_thread_fence(memory_order_seq_cst);
+        p->buffers[n] = mp_ring_new(ao, ao->buffer * ao->sstride);
+    p->ready = (atomic_flag)ATOMIC_FLAG_INIT;
+    atomic_init(&p->state, AO_STATE_NONE);
+    atomic_init(&p->end_time_us, 0);
     return 0;
 }
 
