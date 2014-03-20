@@ -27,7 +27,6 @@
 
 #include "common/msg.h"
 #include "common/common.h"
-#include "compat/stdatomic.h"
 
 #include "osdep/threads.h"
 
