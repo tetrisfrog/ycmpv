@@ -119,7 +119,9 @@ static void update_loglevel(struct mp_log *log)
     }
     for (int n = 0; n < log->root->num_buffers; n++)
         log->level = MPMAX(log->level, log->root->buffers[n]->level);
-    atomic_store(&log->reload_counter, atomic_load(&log->root->reload_counter));
+    atomic_store_explicit(&log->reload_counter,
+                          atomic_load_explicit(&log->root->reload_counter, memory_order_acquire),
+                          memory_order_release);
     pthread_mutex_unlock(&mp_msg_lock);
 }
 
@@ -127,10 +129,10 @@ static void update_loglevel(struct mp_log *log)
 // Thread-safety: see mp_msg().
 bool mp_msg_test(struct mp_log *log, int lev)
 {
-    atomic_thread_fence(memory_order_seq_cst);
     if (!log->root || log->root->mute)
         return false;
-    if (atomic_load(&log->reload_counter) != atomic_load(&log->root->reload_counter))
+    if (atomic_load_explicit(&log->reload_counter, memory_order_acquire) !=
+        atomic_load_explicit(&log->root->reload_counter, memory_order_acquire))
         update_loglevel(log);
     return lev <= log->level || (log->root->smode && lev == MSGL_SMODE);
 }
@@ -395,8 +397,7 @@ void mp_msg_update_msglevels(struct mpv_global *global)
     talloc_free(root->msglevels);
     root->msglevels = talloc_strdup(root, global->opts->msglevels);
 
-    atomic_fetch_add(&root->reload_counter, 1);
-    atomic_thread_fence(memory_order_seq_cst);
+    atomic_fetch_add_explicit(&root->reload_counter, 1, memory_order_acq_rel);
     pthread_mutex_unlock(&mp_msg_lock);
 }
 
@@ -438,8 +439,7 @@ struct mp_log_buffer *mp_msg_log_buffer_new(struct mpv_global *global,
 
     MP_TARRAY_APPEND(root, root->buffers, root->num_buffers, buffer);
 
-    atomic_fetch_add(&root->reload_counter, 1);
-    atomic_thread_fence(memory_order_seq_cst);
+    atomic_fetch_add_explicit(&root->reload_counter, 1, memory_order_acq_rel);
 
     pthread_mutex_unlock(&mp_msg_lock);
 
@@ -473,8 +473,7 @@ found:
     }
     talloc_free(buffer);
 
-    atomic_fetch_add(&root->reload_counter, 1);
-    atomic_thread_fence(memory_order_seq_cst);
+    atomic_fetch_add_explicit(&root->reload_counter, 1, memory_order_acq_rel);
 
     pthread_mutex_unlock(&mp_msg_lock);
 }
