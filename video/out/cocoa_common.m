@@ -312,7 +312,7 @@ static void create_window(struct vo *vo, uint32_t d_width, uint32_t d_height,
 
     vo_set_level(vo, opts->ontop);
 
-    if (opts->native_fs) {
+    if (opts->fs_missioncontrol) {
         [s->window setCollectionBehavior:
             NSWindowCollectionBehaviorFullScreenPrimary];
         [NSApp setPresentationOptions:NSFullScreenWindowMask];
@@ -543,7 +543,7 @@ static void vo_cocoa_fullscreen(struct vo *vo)
 
     vo_cocoa_update_screen_info(vo);
 
-    if (opts->native_fs) {
+    if (opts->fs_missioncontrol) {
         [s->window setFullScreen:opts->fullscreen];
     } else {
         [s->view setFullScreen:opts->fullscreen];
