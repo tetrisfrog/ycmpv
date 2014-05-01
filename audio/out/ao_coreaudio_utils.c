@@ -409,28 +409,6 @@ static bool ca_bitmap_from_ch_desc(struct ao *ao, AudioChannelLayout *layout,
     return all_channels_valid;
 }
 
-static bool ca_bitmap_from_ch_tag(struct ao *ao, AudioChannelLayout *layout,
-                                  uint32_t *bitmap)
-{
-    // This layout is defined exclusively by it's tag. Use the Audio
-    // Format Services API to try and convert it to a bitmap that
-    // mpv can use.
-    uint32_t bitmap_size = sizeof(uint32_t);
-
-    AudioChannelLayoutTag tag = layout->mChannelLayoutTag;
-    OSStatus err = AudioFormatGetProperty(
-        kAudioFormatProperty_BitmapForLayoutTag,
-        sizeof(AudioChannelLayoutTag), &tag,
-        &bitmap_size, bitmap);
-    if (err != noErr) {
-        MP_VERBOSE(ao, "channel layout tag=%d unusable to build channel "
-                       "bitmap, skipping layout\n", tag);
-        return false;
-    } else {
-        return true;
-    }
-}
-
 static void ca_log_layout(struct ao *ao, AudioChannelLayout layout)
 {
     if (!mp_msg_test(ao->log, MSGL_V))
@@ -466,21 +444,27 @@ void ca_bitmaps_from_layouts(struct ao *ao,
 
     for (int i=0; i < n_layouts; i++) {
         uint32_t bitmap = 0;
-        ca_log_layout(ao, layouts[i]);
+        AudioChannelLayout layout = layouts[i];
+        AudioChannelLayoutTag tag = layouts[i].mChannelLayoutTag;
+        uint32_t layout_size      = sizeof(layout);
 
-        switch (layouts[i].mChannelLayoutTag) {
-        case kAudioChannelLayoutTag_UseChannelBitmap:
-            (*bitmaps)[(*n_bitmaps)++] = layouts[i].mChannelBitmap;
-            break;
-
-        case kAudioChannelLayoutTag_UseChannelDescriptions:
-            if (ca_bitmap_from_ch_desc(ao, &layouts[i], &bitmap))
-                (*bitmaps)[(*n_bitmaps)++] = bitmap;
-            break;
-
-        default:
-            if (ca_bitmap_from_ch_tag(ao, &layouts[i], &bitmap))
-                (*bitmaps)[(*n_bitmaps)++] = bitmap;
+        if (tag == kAudioChannelLayoutTag_UseChannelBitmap) {
+            AudioFormatGetProperty(kAudioFormatProperty_ChannelLayoutForBitmap,
+                                   sizeof(uint32_t),
+                                   &layout.mChannelBitmap,
+                                   &layout_size,
+                                   &layout);
+        } else if (tag != kAudioChannelLayoutTag_UseChannelDescriptions) {
+            AudioFormatGetProperty(kAudioFormatProperty_ChannelLayoutForTag,
+                                   sizeof(AudioChannelLayoutTag),
+                                   &layout.mChannelLayoutTag,
+                                   &layout_size,
+                                   &layout);
         }
+
+        ca_log_layout(ao, layout);
+
+        if (ca_bitmap_from_ch_desc(ao, &layouts[i], &bitmap))
+            (*bitmaps)[(*n_bitmaps)++] = bitmap;
     }
 }
